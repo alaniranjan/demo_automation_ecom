@@ -1,0 +1,44 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Playwright output
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
+
+# Allure output
+allure-results/
+allure-report/
+.allure/
+
+# Logs and temp files
+*.log
+npm-debug.log*
+*.tmp
+*.tmp.*
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Jenkins npm cache
+.npm/
+
+# Dashboard run history (generated)
+.dashboard/
+
+# Order-flow screenshots that show the customer's personal details (name, phone, email, address).
+# Kept locally only; 01-cart.png has no personal data and is committed.
+docs/screenshots/order-flow/02-checkout.png
+docs/screenshots/order-flow/03-thank-you.png
+docs/screenshots/order-flow/04-order-details.png

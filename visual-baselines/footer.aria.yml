@@ -1,0 +1,62 @@
+- link "Women's":
+  - /url: /product-list/Womens?l=List_page_01
+- link "Athleisure":
+  - /url: /product-list/Womens/women's-athleisure?l=List_page_01
+- link "Innerwear":
+  - /url: /product-list/Womens/women's-innerwear?l=List_page_01
+- link "Jewellery":
+  - /url: /product-list/Womens/women's-jewellery?l=List_page_01
+- link "Sarees":
+  - /url: /product-list/Womens/women's-sarees?l=List_page_01
+- link "Men's":
+  - /url: /product-list/Mens?l=List_page_01
+- link "Innerwear":
+  - /url: /product-list/Mens/men's-innerwear?l=List_page_01
+- link "Athleisure":
+  - /url: /product-list/Mens/men's-athleisure?l=List_page_01
+- link "Jewellery":
+  - /url: /product-list/Mens/men's-jewellery?l=List_page_01
+- link "Top Wear":
+  - /url: /product-list/Mens/men's-top-wear?l=List_page_01
+- link "Bottom Wear":
+  - /url: /product-list/Mens/men's-bottom-wear?l=List_page_01
+- link "Outerwear":
+  - /url: /product-list/Mens/men's-outerwear?l=List_page_01
+- link "Kids":
+  - /url: /product-list/kids?l=List_page_01
+- link "Girls":
+  - /url: /product-list/kids/kids-girls?l=List_page_01
+- link "Boys":
+  - /url: /product-list/kids/kids-boys?l=List_page_01
+- link "Kids":
+  - /url: /product-list/kids/kids-kids?l=List_page_01
+- link "Accessories":
+  - /url: /product-list/accessories?l=List_page_01
+- link "Office Bags":
+  - /url: /product-list/accessories/accessories-office-bags?l=List_page_01
+- link "Backpacks":
+  - /url: /product-list/accessories/accessories-backpacks?l=List_page_01
+- link "Tote Bags":
+  - /url: /product-list/accessories/accessories-tote-bags?l=List_page_01
+- link "Handbags":
+  - /url: /product-list/accessories/accessories-handbags?l=List_page_01
+- link "Sling Bags":
+  - /url: /product-list/accessories/accessories-sling-bags?l=List_page_01
+- link "Duffle Bags":
+  - /url: /product-list/accessories/accessories-duffle-bags?l=List_page_01
+- link "Laptop Bags":
+  - /url: /product-list/accessories/accessories-laptop-bags?l=List_page_01
+- link "Card Holders":
+  - /url: /product-list/accessories/accessories-card-holders?l=List_page_01
+- text: Help
+- link "Terms of Service":
+  - /url: /terms-of-service
+- link "Shipping Policy":
+  - /url: /shipping-policy
+- link "Replacement Policy":
+  - /url: /replacement-policy
+- link "Privacy Policy":
+  - /url: /privacy-policy
+- link "Cookie Policy":
+  - /url: /cookie-policy
+- text: /© \d+ \| Honebi \| All Rights Reserved\./

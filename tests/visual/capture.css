@@ -1,0 +1,12 @@
+/* Applied only while a UI-comparison screenshot is taken (toHaveScreenshot stylePath). */
+
+/* The thank-you page's confetti canvas never stops animating. */
+canvas {
+  visibility: hidden !important;
+}
+
+/* Blinking cursors and smooth scrolling make otherwise identical frames differ. */
+* {
+  caret-color: transparent !important;
+  scroll-behavior: auto !important;
+}

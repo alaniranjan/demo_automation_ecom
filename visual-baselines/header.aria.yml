@@ -1,0 +1,13 @@
+- link "Women's":
+  - /url: /highlight/women?l=List_page_01
+- link "Men's":
+  - /url: /highlight/men?l=List_page_01
+- link "Kids":
+  - /url: /highlight/kids_collection?l=List_page_01
+- link "undefinedimage":
+  - /url: /
+  - img "undefinedimage"
+- img "Search"
+- img
+- img "Cart"
+- text: "0"

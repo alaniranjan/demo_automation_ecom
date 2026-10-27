@@ -1,0 +1,12 @@
+- dialog:
+  - heading "Sign In" [level=4]
+  - heading "Enter Your Mobile Number" [level=6]
+  - text: /\+\d+/
+  - textbox "Mobile Number"
+  - paragraph
+  - text: Get OTP By Continuing you agree to the
+  - link "Terms of services":
+    - /url: /terms-and-conditions
+  - text: and
+  - link "Privacy policy":
+    - /url: /privacy-policy

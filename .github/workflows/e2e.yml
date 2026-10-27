@@ -1,0 +1,171 @@
+# Runs the Playwright suite and publishes the results to the hosted QA dashboard (Vercel Blob).
+#
+# Triggers: every push to main, and the hosted dashboard's Run button (workflow_dispatch with the inputs below).
+# Required repository secret: BLOB_READ_WRITE_TOKEN (from the Vercel Blob store the dashboard uses).
+name: E2E tests
+
+# Dashboard runs are named "<run ID> · <label>"; the dashboard finds its runs by this name.
+run-name: ${{ inputs.run_id && format('{0} · {1}', inputs.run_id, inputs.label) || (github.event_name == 'push' && format('Push to {0} · {1}', github.ref_name, github.sha)) || 'E2E tests' }}
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Run ID reserved by the dashboard (empty when started by hand)
+        required: false
+        default: ''
+      label:
+        description: Run label shown in the dashboard
+        required: false
+        default: ''
+      suite:
+        description: npm script to run (test, test:smoke, test:regression, test:e2e)
+        required: false
+        default: test
+      files:
+        description: Space-separated spec files instead of a suite (e.g. auth/login.spec.ts)
+        required: false
+        default: ''
+      browsers:
+        description: Desktop browsers (chrome, firefox, webkit), comma-separated
+        required: false
+        default: chrome
+      devices:
+        description: Emulated devices (e.g. iphone-17-pro,pixel-10-pro), comma-separated
+        required: false
+        default: ''
+      size:
+        description: Browser size (720p, 1080p, 1440p)
+        required: false
+        default: ''
+      preview:
+        description: Stream the browsers to the hosted dashboard's live preview
+        required: false
+        default: 'false'
+
+# One run at a time: runs share the published history, and the dashboard shows one active run.
+concurrency:
+  group: e2e
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: 'true'
+      # Publishing is skipped (not failed) until the BLOB_READ_WRITE_TOKEN secret is added.
+      HAS_BLOB_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm ci --prefix dashboard
+
+      # Serves the live preview to the hosted dashboard through a Cloudflare quick tunnel (dashboard/scripts/live-tunnel.ts).
+      # Optional: the tests run the same if it can't start.
+      - name: Start live preview
+        if: inputs.preview == 'true' && inputs.run_id != '' && env.HAS_BLOB_TOKEN == 'true'
+        continue-on-error: true
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/cloudflared" https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64
+          chmod +x "$RUNNER_TEMP/cloudflared"
+          export PATH="$RUNNER_TEMP:$PATH"
+          nohup npm run live:tunnel --prefix dashboard > "$RUNNER_TEMP/live-tunnel.log" 2>&1 &
+          for _ in $(seq 1 90); do
+            grep -q 'Live preview published' "$RUNNER_TEMP/live-tunnel.log" && break
+            grep -q 'Live preview unavailable' "$RUNNER_TEMP/live-tunnel.log" && break
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/live-tunnel.log"
+          grep -q 'Live preview published' "$RUNNER_TEMP/live-tunnel.log"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Only the browsers this run uses: Chrome for desktop Chrome and Android devices, WebKit for Safari and Apple devices.
+      - name: Install browsers
+        env:
+          BROWSERS: ${{ github.event_name == 'workflow_dispatch' && inputs.browsers || 'chrome' }}
+          DEVICES: ${{ inputs.devices }}
+        run: |
+          needed=()
+          IFS=, read -ra targets <<< "$BROWSERS,$DEVICES"
+          for target in "${targets[@]}"; do
+            case "$target" in
+              chrome | pixel-* | galaxy-*) needed+=(chrome) ;;
+              firefox) needed+=(firefox) ;;
+              webkit | iphone-* | ipad-*) needed+=(webkit) ;;
+              all) needed+=(chrome firefox webkit) ;;
+            esac
+          done
+          [ ${#needed[@]} -eq 0 ] && needed=(chrome)
+          # shellcheck disable=SC2046 # one argument per browser
+          npx playwright install --with-deps $(printf '%s\n' "${needed[@]}" | sort -u)
+
+      - name: Run tests
+        id: tests
+        continue-on-error: true
+        env:
+          SUITE: ${{ inputs.suite || 'test' }}
+          FILES: ${{ inputs.files }}
+          BROWSERS: ${{ github.event_name == 'workflow_dispatch' && inputs.browsers || 'chrome' }}
+          DEVICES: ${{ inputs.devices }}
+          RECORDING_RESOLUTION: ${{ inputs.size }}
+          LIVE_PREVIEW: ${{ inputs.preview == 'true' && '1' || '' }}
+        run: |
+          # Inputs come from the dashboard; only known shapes reach the command line.
+          [[ "$SUITE" =~ ^test(:[a-z0-9-]+)?$ ]] || { echo "Invalid suite: $SUITE"; exit 2; }
+          [[ "$FILES" =~ ^[A-Za-z0-9_./\ -]*$ ]] || { echo "Invalid files: $FILES"; exit 2; }
+          [[ "$BROWSERS$DEVICES" =~ ^[a-z0-9,-]*$ ]] || { echo "Invalid browsers/devices"; exit 2; }
+          [[ "$RECORDING_RESOLUTION" =~ ^[0-9p]*$ ]] || { echo "Invalid size"; exit 2; }
+          [ -z "$RECORDING_RESOLUTION" ] && unset RECORDING_RESOLUTION
+          if [ -n "$FILES" ]; then
+            # shellcheck disable=SC2086 # one argument per spec file
+            npx playwright test $FILES
+          else
+            npm run "$SUITE"
+          fi
+
+      - name: Publish to the dashboard
+        if: always() && env.HAS_BLOB_TOKEN == 'true'
+        env:
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          RUN_ID: ${{ inputs.run_id }}
+          RUN_LABEL: ${{ inputs.label }}
+          RUN_SUITE: ${{ inputs.files != '' && 'selected' || inputs.suite }}
+        run: npm run publish:run --prefix dashboard
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Fail the job if tests failed
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
