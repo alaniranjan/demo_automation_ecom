@@ -1,75 +1,71 @@
-# Sauce Demo E2E Automation Framework
+# Demo Store E2E Automation Framework
 
-End-to-end test automation for [Sauce Demo](https://www.saucedemo.com/), built with **Playwright**, **TypeScript** and **Allure Report**. It covers authentication, the product catalog, the shopping cart, checkout, and a full purchase workflow, using the Page Object Model and custom Playwright fixtures. A **Next.js dashboard** shows results and runs suites from the browser.
+End-to-end test automation for the [Honebi demo store](https://demo.honebi.online/) (an Indian fashion e-commerce site), built with **Playwright**, **TypeScript** and **Allure Report**. It covers the guest storefront (sign-in validation, home, listings, sorting, filters, search, product pages, the bag), the signed-in account and a real **Cash on Delivery order**, plus **visual (UI comparison) testing** against approved baselines. A **Next.js QA dashboard** runs the suites and shows results, screenshots and videos in the browser.
 
 ## Technology stack
 
 | Tool | Version | Purpose |
 |---|---|---|
-| [Playwright Test](https://playwright.dev/) | 1.64.1 (pinned) | Test runner and browser automation |
+| [Playwright Test](https://playwright.dev/) | 1.64.1 (pinned) | Test runner, browser automation, screenshot and ARIA snapshot comparison |
 | TypeScript | 7.x | Strictly typed test code |
 | [allure-playwright](https://allurereport.org/docs/playwright/) | 3.x | Writes Allure results during the run |
 | [Allure Report](https://allurereport.org/) (`allure` npm package) | 3.x | Generates and serves the HTML report (no Java needed) |
 | dotenv | 18.x | Loads optional `.env` overrides |
-| Jenkins | - | CI pipeline (`Jenkinsfile`) |
-| Next.js + Tailwind CSS | 16 / 4 | Local QA dashboard (`dashboard/`) |
+| Jenkins / GitHub Actions | - | CI pipelines (`Jenkinsfile`, `.github/workflows/e2e.yml`) |
+| Next.js + Tailwind CSS | 16 / 4 | QA dashboard (`dashboard/`) |
 
 ## Prerequisites
 
 - **Node.js 20 or newer** (developed on Node 22) and npm
-- Network access to `https://www.saucedemo.com`
+- **Google Chrome** (the default browser) and network access to `https://demo.honebi.online`
+- For the signed-in tests: a store account you can sign in to with **your mobile number and an OTP**
 - Docker, only if you run the Jenkins pipeline as written
 
 ## Installation
 
 ```bash
-git clone <your-repo-url>
-cd playwright-saucedemo-framework
+git clone https://github.com/alaniranjan/demo_automation_ecom.git
+cd demo_automation_ecom
 npm ci                      # installs exact versions from package-lock.json
 npm run browsers:install    # installs Google Chrome, Firefox and WebKit for Playwright
 ```
 
-Optional: to run Firefox and WebKit as well, install them with `npx playwright install firefox webkit`.
-
 ## Folder structure
 
 ```text
-playwright-saucedemo-framework/
-├── tests/                          # Specs, grouped by feature
-│   ├── auth/                       # login.spec.ts, logout.spec.ts
-│   ├── products/                   # product-list.spec.ts, product-sort.spec.ts
-│   ├── cart/                       # add-to-cart.spec.ts, remove-from-cart.spec.ts
-│   ├── checkout/                   # checkout-information.spec.ts, complete-order.spec.ts
-│   └── regression/                 # e2e-purchase.spec.ts (full business workflow)
-├── pages/                          # Page Object Model
-│   ├── BasePage.ts                 # Shared header: cart badge, menu, logout
-│   ├── LoginPage.ts
-│   ├── ProductsPage.ts             # Inventory list, sorting, add/remove
-│   ├── ProductDetailsPage.ts
-│   ├── CartPage.ts
-│   ├── CheckoutPage.ts             # Step one (information) and step two (overview)
-│   └── OrderCompletePage.ts
-├── fixtures/test-fixtures.ts       # Page-object fixtures + `loggedInProductsPage`
-├── test-data/                      # users.ts, products.ts, customers.ts
-├── utils/test-helpers.ts           # Price parsing/formatting, order totals, sorting, Allure labels
-├── utils/browser-info.ts           # Tags each test with its browser version (and device OS version)
-├── dashboard/                      # Next.js QA dashboard (see dashboard/README.md)
-├── docs/screenshots/               # Report screenshots used in this README
+demo_automation/
+├── tests/
+│   ├── auth/            # login.spec.ts (AUTH-01..13), guest-access.spec.ts (GUEST-01..06)
+│   ├── home/            # home.spec.ts (HOME-01..09)
+│   ├── products/        # product-list (PLP), product-sort (SORT), product-filter (FILT), search (SRCH), product-details (PDP)
+│   ├── cart/            # add-to-cart.spec.ts, update-cart.spec.ts (CART-01..10)
+│   ├── regression/      # e2e-shopping.spec.ts (E2E-01: guest journey up to the checkout sign-in)
+│   ├── account/         # Signed-in only: login.setup.ts, account.spec.ts (ACC), place-order.spec.ts (ORD)
+│   └── visual/          # UI comparison: storefront-ui.spec.ts, account-ui.spec.ts (VIS-01..16), capture.css
+├── pages/               # Page Object Model
+│   ├── BasePage.ts      # Shared header: logo, menu, search, wishlist, account, bag
+│   ├── HomePage.ts, ProductListPage.ts, SearchPage.ts, ProductDetailsPage.ts, LoginPage.ts
+│   ├── CheckoutPage.ts  # Signed-in checkout: prefilled address, payment, coupons, order summary
+│   ├── AccountPage.ts   # My Account: profile, order history
+│   ├── OrderPages.ts    # Thank-you page and order details
+│   └── components/      # CartDrawer, SignInDialog, LocationDialog
+├── fixtures/test-fixtures.ts   # Page-object fixtures, saved delivery location, `menListingPage`
+├── test-data/           # Categories, products, sort options, search terms, phone-number cases, reference order
+├── utils/               # hydration.ts (waits for the page to be interactive), test-helpers.ts, auth.ts, devices, recording
+├── visual-baselines/    # Approved UI screenshots and ARIA snapshots (the "old UI")
+├── dashboard/           # Next.js QA dashboard (see dashboard/README.md)
+├── reporters/           # Live-progress and catalog reporters used by the dashboard
 ├── playwright.config.ts
-├── allurerc.mjs                    # Allure 3 report settings (name, tree grouping)
-├── tsconfig.json
-├── Jenkinsfile
-├── .env.example
-└── package.json
+├── allurerc.mjs, tsconfig.json, Jenkinsfile, .env.example, package.json
 ```
 
 ### How the framework fits together
 
-- **Page objects** (`pages/`) own every locator and user action. Specs never use raw selectors. Locators prefer `getByRole` and `getByTestId`. Sauce Demo marks elements with `data-test`, so the config sets `testIdAttribute: 'data-test'`.
-- **Fixtures** (`fixtures/test-fixtures.ts`) inject a ready-made page object into each test. `loggedInProductsPage` logs in as the standard user and checks that the Products page loaded, so tests that need a session start in one line. Two automatic fixtures run for every test: `livePreview` streams frames to the dashboard when `LIVE_PREVIEW=1`, and `browserInfo` tags the test with the real browser version (plus the emulated iOS or Android version on devices) as `browser-version` and `os-version` annotations.
-- **Test data** (`test-data/`) holds credentials, expected catalog data, error messages and a `createCustomer()` builder that makes unique checkout data for each test.
-- **Helpers** (`utils/`) calculate expected totals in integer cents to avoid floating-point rounding errors, and set Allure epic, feature and story labels.
-- Each test gets a fresh browser context, so tests share no state and can run in any order or in parallel.
+- **Page objects** (`pages/`) own every locator and user action; specs never use raw selectors. The store marks key elements with stable `id`s (`product-card`, `product-name`, `add-to-cart-button`, …), so the config sets `testIdAttribute: 'id'` and page objects use `getByTestId` and `getByRole`.
+- **Test IDs and names**: every test title starts with an ID (`AUTH-01`, `CART-05`, `VIS-07`, …). The dashboard shows them as badges, with an icon per spec file and folder.
+- **Waiting for a live, server-rendered site**: pages appear before React makes them clickable, and early clicks are silently ignored. `utils/hydration.ts` waits for each key control to become interactive, and cart actions repeat a click only if the store never sent its `cart/update` request, so nothing is ever added twice. Navigation doesn't wait for every image to load.
+- **Delivery location**: the store asks for a pincode before the first add to bag. A fixture saves one (560001 by default) in the browser before each test; `CART-04` tests the location dialog itself.
+- Each test gets a fresh browser context (an empty guest bag), so tests share no state and can run in any order.
 
 ## Environment configuration
 
@@ -81,146 +77,142 @@ cp .env.example .env
 
 | Variable | Default | Description |
 |---|---|---|
-| `BASE_URL` | `https://www.saucedemo.com` | Application under test |
-| `SAUCE_STANDARD_USER` | `standard_user` | Valid user |
-| `SAUCE_LOCKED_OUT_USER` | `locked_out_user` | Locked-out user |
-| `SAUCE_PASSWORD` | `secret_sauce` | Shared password |
-| `BROWSERS` | `chrome` | Desktop browsers to run, comma-separated: `chrome` (Google Chrome), `firefox`, `webkit`, or `all`; empty for device-only runs |
-| `DEVICES` | none | Emulated phones and tablets (Playwright device profiles): `iphone-17-pro`, `iphone-17-pro-max`, `iphone-16`, `iphone-16e`, `pixel-10-pro`, `pixel-9`, `galaxy-s24`, `galaxy-a55`, `ipad-pro-11`, `ipad-gen-11`, `ipad-mini`, `galaxy-tab-s9`, `galaxy-tab-s4`, or `all`. Apple devices run in WebKit, Android in Chrome. The list lives in `utils/devices.ts` |
-| `CROSS_BROWSER` | `false` | `true` is a shortcut for `chrome,firefox,webkit` (ignored when `BROWSERS` is set) |
-| `LIVE_PREVIEW` | unset | `1` streams each running test's browser (about 3 frames per second) to `test-results/live-frames/` for the dashboard's Live preview |
-| `RECORDING_RESOLUTION` | `1080p` | Browser size (viewport), and the size of failed tests' screenshots and videos: `720p` (1280×720), `1080p` (1920×1080) or `1440p` (2560×1440, 2K) |
+| `BASE_URL` | `https://demo.honebi.online` | Application under test |
+| `DEMO_PINCODE`, `DEMO_LATITUDE`, `DEMO_LONGITUDE` | `560001`, `12.9716`, `77.5946` | Delivery location saved before each test |
+| `DEMO_MOBILE` | unset | Your mobile number for `npm run auth:login` (only the OTP is then typed). Set it from the dashboard's **Settings → Customer account** card or in `.env` |
+| `DEMO_REFERENCE_ORDER` | `ORDT1102292` | An existing order re-opened (never re-placed) by the visual tests of the thank-you and order details pages |
+| `ORDER_DRY_RUN` | unset | `true` runs the order test up to, but not including, "Place order" |
+| `BROWSERS` | `chrome` | Desktop browsers: `chrome`, `firefox`, `webkit`, or `all`; empty for device-only runs |
+| `DEVICES` | none | Emulated phones and tablets (`iphone-17-pro`, `pixel-10-pro`, `ipad-pro-11`, … or `all`; list in `utils/devices.ts`) |
+| `CROSS_BROWSER` | `false` | `true` is a shortcut for `chrome,firefox,webkit` |
+| `LIVE_PREVIEW` | unset | `1` streams each running test's browser to the dashboard's live preview |
+| `RECORDING_RESOLUTION` | `1080p` | Browser size and the size of failed tests' screenshots and videos: `720p`, `1080p` or `1440p` |
 | `KEEP_ALLURE_RESULTS` | unset | `true` keeps previous `allure-results` instead of clearing them |
-| `CI` | unset | Enables CI mode: 2 retries, 2 workers, `forbidOnly`, JUnit output |
+| `CI` | unset | CI mode: 2 retries, 2 workers, `forbidOnly`, JUnit output |
 
-The default credentials are the public demo accounts shown on the Sauce Demo login page. They are not secrets. `.env` is git-ignored.
+`.env` and the saved sign-in session (`playwright/.auth/`) are git-ignored. **Never commit a real phone number.**
 
 ## Running tests
 
+### Guest storefront (no account needed)
+
 | Command | What it does |
 |---|---|
-| `npm test` | Runs every test (Google Chrome) |
-| `npm run test:headed` | Runs with a visible browser |
-| `npm run test:debug` | Opens the Playwright Inspector and steps through tests |
-| `npm run test:ui` | Opens Playwright UI mode |
-| `npm run test:smoke` | Runs only tests tagged `@smoke` |
-| `npm run test:regression` | Runs tests tagged `@regression` (the full suite) |
-| `npm run test:e2e` | Runs the end-to-end purchase workflow |
-| `npm run test:chrome` | Runs the Google Chrome project only |
-| `npm run typecheck` | Type-checks the whole project with `tsc` |
-| `npm run dashboard` | Starts the QA dashboard at http://127.0.0.1:3000 (run `npm run dashboard:install` once first) |
-
-Extra Playwright CLI arguments go after `--`:
+| `npm test` | Runs all 70 guest tests (Google Chrome) |
+| `npm run test:smoke` | The 9 critical-path tests tagged `@smoke` |
+| `npm run test:regression` | Every guest test (`@regression`) |
+| `npm run test:e2e` | `E2E-01`: browse → sort → add products → search → bag → checkout sign-in |
+| `npm run test:headed` / `test:debug` / `test:ui` | Visible browser / Playwright Inspector / UI mode |
+| `npm run test:chrome` | The Google Chrome project only |
+| `npm run typecheck` | Type-checks the whole project |
 
 ```bash
-npm test -- tests/cart                          # one folder
-npm test -- -g "locked-out"                     # by title
-npm run test:headed -- --grep @e2e              # headed, one tag
-BROWSERS=chrome,firefox npm run test:smoke     # any combination of browsers
-BROWSERS= DEVICES=iphone-17-pro,pixel-10-pro npm run test:smoke   # emulated phones only
-CROSS_BROWSER=true npm test                     # Chrome + Firefox + WebKit
-npm test -- --trace on                          # record traces for every test
+npm test -- tests/cart                              # one folder
+npm test -- -g "CART-05"                            # one test by ID
+BROWSERS= DEVICES=iphone-17-pro npm run test:smoke  # emulated phone only
 ```
 
-### Tags
+### Signed-in account and a real order
 
-| Tag | Meaning |
+Sign-in is **mobile number + OTP**, so it can't be automated end to end. Sign in once and the session is reused:
+
+| Command | What it does |
 |---|---|
-| `@smoke` | Fast, critical-path checks (9 tests) |
-| `@regression` | Every test (36 tests) |
-| `@e2e` | The full purchase workflow |
+| `npm run auth:login` | Opens Chrome on the login page. With `DEMO_MOBILE` set, it fills the number and requests the OTP; you type the OTP. The session is saved to `playwright/.auth/user.json` |
+| `npm run test:account` | `ACC-01..03`: profile, order history, prefilled checkout and its totals. **No order is placed** |
+| `npm run test:order:dry-run` | `ORD-01` up to "Place order": bag and checkout calculations, coupon attempts, Cash on Delivery. **No order is placed** |
+| `npm run test:order` | `ORD-01`: **places a real Cash on Delivery order** (see below) |
+
+`ORD-01` empties the account's bag, adds one product (the ₹379 muscle vest, size M), verifies the bag and checkout calculations, tries each offered voucher (applies the first one the store accepts, otherwise skips), pays on delivery, reads the order ID on the thank-you page, finds the order in **My Account → Orders**, and verifies its details (item, size, quantity, amounts, payment method, delivery address). Screenshots of the bag, checkout, thank-you page and order details are attached to the report.
+
+These tests never run with `npm test` or the smoke/regression suites, and they are never retried (a retry after "Place order" would place a second order). Each `npm run test:order` places another real order.
+
+### Visual testing (UI comparison)
+
+Compares each screen with its **approved baseline** in `visual-baselines/` and fails when the UI changes: layout, styling, or missing or renamed elements.
+
+| Command | What it does |
+|---|---|
+| `npm run test:visual` | Compares all 16 screens (`VIS-01..16`) |
+| `npm run visual:update` | Approves the current UI as the new baseline (after an intended redesign) |
+
+- **Screens:** header, promo bar, home, footer, listing, search, product page, size guide, sign-in dialog, login page, bag with one item, empty bag; signed in: checkout, thank-you page, order details, My Account menu. The signed-in ones are skipped without a session, and re-open an existing order, so **no order is placed**.
+- **Structure checks** (ARIA snapshots) of the header, footer and sign-in dialog catch renamed or missing links even when few pixels change.
+- **Masked** so they don't count as UI changes: product photos, names, prices and counts, the hero slider, delivery dates, and the customer's name, phone, email and address. The thank-you confetti is hidden.
+- **Tolerance:** at most 100 differing pixels per screen. An absolute budget, because a missing menu link is only about 300 pixels (0.2% of the header), which a percentage would let through.
+- Only changed screens keep media: the old (baseline), new and difference images plus a video.
 
 ## Reports
 
-### Allure Report
-
-Each run starts by clearing `allure-results/`, then writes fresh results to it. To build and view the report:
-
 ```bash
 npm run allure:generate     # allure-results/ -> allure-report/
-npm run allure:open         # serves allure-report/ on a local port and opens the browser
+npm run allure:open         # serves the report locally and opens the browser
+npm run report:playwright   # Playwright HTML report
 ```
 
-`allure open` serves the report over HTTP because opening `allure-report/index.html` directly from the file system doesn't work in most browsers.
-
-What the report includes:
-
-- Tests grouped **Feature → Story** (for example Authentication → Login), with suite and tag labels
-- Every `test.step()` as a nested step, including fixture setup and teardown
-- Status, duration, severity, error message and stack trace
-- For failed tests only: the full video of the whole scenario and a full-page PNG screenshot of the moment it failed, at 1080p (or 2K with `RECORDING_RESOLUTION=1440p`). Passed tests keep no media. No trace unless you run with `--trace on`
-- Environment metadata: application URL, Node version, OS and CI flag
-
-### Playwright HTML report
-
-```bash
-npm run report:playwright
-```
-
-### Sample report screenshots
-
-Overview, grouped by feature and story:
-
-![Allure overview](docs/screenshots/allure-overview.png)
-
-The end-to-end test with its numbered business steps:
-
-![Allure test steps](docs/screenshots/allure-test-steps.png)
+The Allure report groups tests **Feature → Story**, shows every `test.step()`, severity, errors and environment details, and attaches media for failed tests only (a full-page screenshot and the video, at 1080p by default). Visual mismatches include the expected, actual and diff images.
 
 ## QA dashboard
 
-`dashboard/` is a Next.js + Tailwind CSS admin panel that connects to this framework. A collapsible sidebar leads to five pages: **Dashboard** (KPIs, trends, latest run, failing tests), **Test runs** (launch a suite and follow it live with a progress bar and console), **Test history** (every run, filterable, with each run's failures), **Test explorer** (steps, errors, screenshots and videos for each test) and **Reports** (embedded Allure and Playwright reports). It supports light and dark themes and works on mobile.
+`dashboard/` is a Next.js + Tailwind CSS app that runs this framework's tests and shows their results.
 
 ```bash
 npm run dashboard:install   # once
 npm run dashboard           # http://127.0.0.1:3000
 ```
 
-![QA dashboard](docs/screenshots/dashboard-light.png)
+- **Dashboard**: KPIs, pass-rate trend, latest run, failing tests
+- **Test Suites**: npm suites and every spec file with its icon, readable name, test IDs and latest results; run selected files. Signed-in specs carry **Signed in** / **Real order** badges, and the order spec asks for confirmation before it runs
+- **Desktop Browsers / Mobile & Tablet**: start runs and watch them live
+- **Visual Testing** (UI Testing): run the UI comparison or approve the current UI; each changed screen shows old, new and difference images (side by side or with a slider) and its video, plus a gallery of approved baselines
+- **Execution History, Allure Reports, Artifacts**: past runs, reports, screenshots and videos
+- **Settings**: theme, the **Customer account** mobile number for `auth:login` (stored only in the local `.env`, shown masked), framework and backend details
 
-It reads `test-results/results.json` (written by the `json` reporter), so runs started from the terminal appear too. See [dashboard/README.md](dashboard/README.md) for the API and security notes. The dashboard is a local tool: it binds to `127.0.0.1` and can only run this project's fixed npm scripts.
+The dashboard is a local tool: it binds to `127.0.0.1` and only runs this project's npm scripts and listed spec files. See [dashboard/README.md](dashboard/README.md) for the API and hosting notes.
 
 ## Implemented scenarios
 
-**Authentication (11)**: valid login; invalid username; invalid password; empty fields; missing username; missing password; locked-out user; dismissing the error message; blocking direct access to the inventory without a session; logout redirects to login; logout ends the session.
+**Authentication (13)**: login page tabs and fields; empty and too-short mobile numbers rejected; registration fields; first-name validation and its error clearing; sign-in dialog from the header; Get OTP disabled until a 10-digit number; digits-only and 10-digit limit; backdrop closes the dialog; terms and privacy links. No OTP is ever requested.
 
-**Products (9)**: products page after login; product names, prices and count; product details navigation and return; add to cart from the details page; add and remove on the inventory page; sort by name A–Z and Z–A; sort by price low–high and high–low.
+**Guest restrictions (6)**: wishlist (product page, header, card heart) and Buy Now ask a guest to sign in; checkout sends a guest to the login page; empty default wishlist.
 
-**Shopping cart (6)**: add one product; add multiple products, checking badge count, names, prices and quantities; cart persists across navigation; remove one of several products; remove the last product; continue shopping and re-add.
+**Home (9)**: header, hero and empty bag; featured sections; header and footer collection links; logo returns home; store policies in the footer; footer sub-collection link.
 
-**Checkout (9)**: cart to checkout navigation; missing first name, last name and postal code; empty form; valid information reaches the overview; cancel returns to the cart; item total, 8% tax and final price; order completion and confirmation message; Back Home with an empty cart.
+**Products (31)**: every collection's listing and count; card name, sale price, MRP and matching discount; card to product page; quick add from a card; infinite scroll; sub-collections; the card quantity stepper; sorting by price (the store sorts by MRP) and sort from a shared URL; size filter and clearing it; search, letter case, no results, result counter; product page pricing, sizes, delivery date, recommendations, colours, gallery and size guide.
 
-**End-to-end workflow (1)**: open site → log in → verify products → add two products → verify cart → checkout → enter customer info → verify summary and totals → finish → verify confirmation → log out.
+**Bag (10)**: add in a chosen size; two products and the estimated total; bag price matches the product page; delivery location dialog on first add; quantity and total; decrease to empty; remove; persists after reload; close and keep shopping; Continue exploring.
 
-## Jenkins
+**End-to-end (1)**: guest journey from the home page to the checkout sign-in.
 
-The `Jenkinsfile` runs inside the official `mcr.microsoft.com/playwright:v1.64.1-noble` image, so the browsers match the pinned Playwright version. Its stages are: checkout → `npm ci` → `playwright install --with-deps chrome` → type check → tests. The agent runs as root (`-u root`) because Google Chrome installs system-wide. A `SUITE` parameter selects `all`, `smoke` or `regression`.
+**Signed in (4)**: profile, order history, prefilled checkout and its totals, and the full Cash on Delivery order (`ORD-01`).
 
-- Test failures mark the build **UNSTABLE** instead of aborting it, so the `post { always { … } }` block still generates the Allure report, publishes JUnit results, and archives `allure-results/`, `allure-report/`, `playwright-report/` and `test-results/`.
-- **Required plugins:** Pipeline, Docker Pipeline, JUnit, HTML Publisher, Timestamper.
-- **Optional:** Allure Jenkins Plugin with an Allure 2 commandline tool named `allure`, for native trend graphs. Uncomment the `allure` step at the end of the `Jenkinsfile`.
-- Store any credential overrides as Jenkins credentials, not in the repository. The `Jenkinsfile` includes a commented example.
+**Visual (16)**: the screens listed under [Visual testing](#visual-testing-ui-comparison).
 
-When you upgrade `@playwright/test`, update the Docker image tag to the same version.
+## CI
+
+- **GitHub Actions** (`.github/workflows/e2e.yml`) runs the guest tests on every push to `main` and on demand from the hosted dashboard. Publishing results to the hosted dashboard needs a `BLOB_READ_WRITE_TOKEN` repository secret; without it that step is skipped.
+- **Jenkins** (`Jenkinsfile`) runs in the `mcr.microsoft.com/playwright:v1.64.1-noble` image: checkout → `npm ci` → install Chrome → type check → tests (`SUITE` = all, smoke or regression), then publishes JUnit, Allure and Playwright reports. Failures mark the build UNSTABLE so reports are still published. Required plugins: Pipeline, Docker Pipeline, JUnit, HTML Publisher, Timestamper.
+
+The signed-in and visual account tests need a real OTP sign-in, so they are not part of CI.
 
 ## Troubleshooting
 
 | Symptom | Fix |
 |---|---|
-| `browserType.launch: Executable doesn't exist` | Run `npm run browsers:install` (or `npx playwright install firefox webkit` for cross-browser runs). |
-| `allure: command not found` | Run `npm ci`. The scripts use the locally installed `allure` package, not a global one. |
-| Allure report is empty or shows old tests | Run the tests before `allure:generate`. Results are cleared at the start of every run unless `KEEP_ALLURE_RESULTS=true`. |
-| Allure report shows a blank page when opened from disk | Use `npm run allure:open`, which serves the report over HTTP. |
-| Allure report in Jenkins (HTML Publisher) is blank | Jenkins' default Content Security Policy blocks report scripts. Download the archived `allure-report/` artifact, relax the CSP for the HTML Publisher, or use the Allure Jenkins Plugin. |
-| Using `--reporter=…` produces no Allure results | The CLI flag replaces every configured reporter. Add it back explicitly: `--reporter=list,allure-playwright`. |
-| Timeouts on a slow network | Increase `timeout`, `expect.timeout` or `navigationTimeout` in `playwright.config.ts`. |
-| No trace in a failure | Traces are off: failed tests keep only a screenshot and a video. Run `npm test -- --trace on` when you need one. |
-| No screenshot or video for a passed test | By design: only failed tests keep media. |
+| `browserType.launch: Executable doesn't exist` | Run `npm run browsers:install`. |
+| Account or order tests fail at sign-in, or visual tests VIS-13..16 are skipped | The saved session is missing or expired: run `npm run auth:login` again. |
+| "saved DEMO_MOBILE was rejected" during `auth:login` | The saved number isn't accepted by the store; update it in dashboard Settings or `.env`. |
+| A visual check fails after an intended redesign | Review the old/new/difference images, then run `npm run visual:update` (or **Approve current UI** in the dashboard). |
+| Occasional timeouts or "page did not become interactive" | The live demo server is slow under load. Runs use 2 workers and one local retry; retried passes show as *flaky*. |
+| `allure: command not found` | Run `npm ci`; the scripts use the local `allure` package. |
+| Allure report is blank when opened from disk | Use `npm run allure:open`, which serves it over HTTP. |
+| Using `--reporter=…` produces no Allure or dashboard results | The flag replaces every configured reporter; add them back, e.g. `--reporter=list,json,allure-playwright`. |
 
 ## Known limitations
 
-- Sauce Demo is a public demo site with no API or database, so all setup goes through the UI, including login for each test. The full suite still runs in about 10 seconds.
-- Expected catalog data (names, prices, 8% tax) is stored in `test-data/products.ts`. If the demo site changes its catalog, update that file.
-- The checkout tests cover the validation the site actually has: it checks that fields are non-empty but doesn't validate postal code format.
-- Only `standard_user` and `locked_out_user` are covered. The site's intentionally broken accounts (`problem_user`, `error_user`, `visual_user`, `performance_glitch_user`) are not tested.
-- Firefox and WebKit projects are configured but opt-in, and are not part of the default verified run.
+- This is a live demo store: its catalog, prices and stock change. Tests check behaviour and relationships (sort order, sale price ≤ MRP, totals adding up) rather than fixed product lists; the two products in `test-data/products.ts` may need updating if they are removed.
+- Sign-in is by mobile number and OTP, so guest tests stop at the sign-in step, and the signed-in tests need `npm run auth:login` by a person.
+- **Known site defect:** opening a listing with `?sort=` in the URL sorts the products but the Sort dropdown still shows "Featured". `SORT-05` is marked as an expected failure and will flag when the site is fixed.
+- Entering an invalid pincode such as `000000` still shows a delivery date, so invalid pincodes aren't tested.
+- Visual baselines are for Chrome at 1920×1080; other browsers or sizes would need their own baselines.
+- Firefox, WebKit and the emulated devices are configured but opt-in.
